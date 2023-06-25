@@ -4,7 +4,7 @@ from tensorflow import keras
 import numpy as np
 
 # model architecture choices for decoy fmnist dataset classification
-def build_model(hp):
+def build_model_fmnist(hp):
     with tf.device('/device:GPU:0'):
         # Construct an instance of CustomModel
         inputs = keras.Input(shape=(28, 28, 1))

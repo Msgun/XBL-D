@@ -6,6 +6,7 @@ from tensorflow.keras.utils import to_categorical
 import cv2
 import keras_tuner
 import build_model 
+import tqdm
 
 def image_collect(path):
     # path: train or test dirs
@@ -14,7 +15,7 @@ def image_collect(path):
     
     for folder in os.listdir(path):
         class_path = path + folder + "/"
-        for img in os.listdir(class_path):
+        for img in tqdm.tqdm(os.listdir(class_path)):
             img_pth = class_path + img
             img_arr = cv2.imread(img_pth)
             img_arr = cv2.resize(img_arr, (height, width))
@@ -24,12 +25,14 @@ def image_collect(path):
 
 x_train, x_test = [], []
 
+print('Loading training and test images')
+
 # training images with synthetically added confounding regions
-data_path = "./training_set/confounded/"
+data_path = "./MSCOCO/confounded/"
 x_train = image_collect(data_path)
 
 # clean test images
-data_path = "./test_set/images/"
+data_path = "./MSCOCO/images/"
 x_test = image_collect(data_path)
 
 print('images loaded successfully')
@@ -46,12 +49,14 @@ y_test_arr = to_categorical(y_test_arr)
 tuner = keras_tuner.RandomSearch(
     hypermodel=build_model.build_model_coco,
     objective="val_categorical_accuracy",
-    max_trials=50,
-    executions_per_trial=5,
+    max_trials=10,
+    executions_per_trial=1,
     overwrite=True,
     directory="models_coco",
     project_name="tuned_class_loss",
 )
+
+print('Searching for best hyperparameters')
 
 # start best hyperparameter search
 tuner.search(x_train_arr, y_train_arr, epochs=1, validation_data=(x_test_arr, y_test_arr))
@@ -61,10 +66,11 @@ model = tuner.get_best_models()[0]
 
 # evaluate performnce of best model from tuning
 results = model.evaluate(x_test_arr, y_test_arr, batch_size=100)
+print()
 print("tuned model performance; test loss, test acc:", results)
 
 # Train model using selected hyperparameters and save to disk
-checkpoint_filepath = '.coco.h5'
+checkpoint_filepath = './coco.h5'
 epochs = 100
 model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
     filepath=checkpoint_filepath,

@@ -9,28 +9,34 @@ import cv2
 import matplotlib.pyplot as plt
 import time
 import build_model 
+import tqdm
 
-def image_collect(path):
+def image_collect(path, TEST):
     tmp = []
     height, width = 224, 224
     for folder in os.listdir(path):
         class_path = path + folder + "/"
-        for img in os.listdir(class_path):
+        for i, img in tqdm.tqdm(enumerate(os.listdir(class_path))):
+            if(TEST and i<1000): continue
             img_pth = class_path + img
             img_arr = cv2.imread(img_pth)
             img_arr = cv2.resize(img_arr, (height, width))/255
             tmp.append(img_arr)
+            
+        #TODO avoid first 1000 images automatically because they are part of training set
     return tmp
 
 x_train_con, confound_mask, x_train_clean, object_mask, x_test = [], [], [], [], []
 
+print('Loading training and test images')
+
 # confounded training dataset
-data_path = "./trainVszebra/training_set/confounded/"
-x_train_con = image_collect(data_path)
+data_path = "./MSCOCO/confounded/"
+x_train_con = image_collect(data_path, False)
 
 # always clean test set
-data_path = "./trainVszebra/test_set/images/"
-x_test = image_collect(data_path)
+data_path = "./MSCOCO/images/"
+x_test = image_collect(data_path, True)
 
 # function to collect annotations in 14x14 shapes
 def image_collect_14x14(path):
@@ -39,7 +45,8 @@ def image_collect_14x14(path):
     height_c, width_c = 14, 14
     for folder in os.listdir(path):
         class_path = path + folder + "/"
-        for img in os.listdir(class_path):
+        for i, img in tqdm.tqdm(enumerate(os.listdir(class_path))):
+            if(i==1000): break
             img_pth = class_path + img
             img_arr = cv2.imread(img_pth)
             gray = cv2.cvtColor(img_arr, cv2.COLOR_BGR2GRAY)
@@ -49,17 +56,18 @@ def image_collect_14x14(path):
             tmp.append(img_arr)
     return tmp
 
+print('Loading annotations of confounders and objects')
 # confounders mask
-data_path = "./trainVszebra/training_set/confounded_mask/"
+data_path = "./MSCOCO/confounded_mask/"
 confound_mask = image_collect_14x14(data_path)
 
 # object annotations
-data_path = "./trainVszebra/training_set/object_annotations/"
+data_path = "./MSCOCO/annotations/"
 object_mask = image_collect_14x14(data_path)
 
 print('images successfully loaded.')
 
-train_size, test_size = int(len(x_train_clean)/2), int(len(x_test)/2)
+train_size, test_size = int(len(x_train_con)/2), int(len(x_test)/2)
 y_train_arr = np.concatenate([np.zeros(train_size, dtype=np.float32),
                               np.ones(train_size, dtype=np.float32)])
 y_test_arr = np.concatenate([np.zeros(test_size, dtype=np.float32),
@@ -101,14 +109,14 @@ train_dataset = train_dataset.shuffle(buffer_size=100).batch(batch_size)
 val_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test_arr))
 val_dataset = val_dataset.batch(batch_size)
 
-print('dataset prepared')
+print('finished preparing dataset')
 
 # load tuned hyperparametrs from directory
 tuner = keras_tuner.RandomSearch(
     hypermodel=build_model.build_model_coco,
     objective="val_accuracy",
-    max_trials=60,
-    executions_per_trial=2,
+    max_trials=10,
+    executions_per_trial=1,
     overwrite=False, # so we don't overwrite tuned models
     directory="models_coco",
     project_name="tuned_class_loss",
@@ -117,7 +125,7 @@ tuner = keras_tuner.RandomSearch(
 # Get the top hyperparameters.
 best_hps = tuner.get_best_hyperparameters()
 # Build the model with the best hp.
-model = build_model.build_model(best_hps[0])
+model = build_model.build_model_coco(best_hps[0])
 # load model weights
 model.load_weights("./coco.h5")
 
@@ -224,11 +232,11 @@ def plot_history(history):
 history = {}
 history['validation_accuracy'] = []
 history['train_accuracy'] = []
-history['train_map'] = []
-history['validation_map'] = []
+# history['train_map'] = []
+# history['validation_map'] = []
 history['cl_loss'] = []
 history['exp_loss'] = []
-epochs = 100
+epochs = 10
 val_acc_threshold = 0.0
 
 for epoch in range(epochs):
@@ -251,10 +259,10 @@ for epoch in range(epochs):
 
     print("Training acc: %.4f" % (train_acc,))
     history['train_accuracy'].append((train_acc,))
-    history['validation_map'].append((train_map,))
-    print("Training MAP: %.4f" % (train_map,))
+    # history['validation_map'].append((train_map,))
+    # print("Training MAP: %.4f" % (train_map,))
 
-    print('{}/{} CAM intersected with WR.'.format(ctr_cam_wr_intersection,len(y_train_arr_nonencode)))
+    # print('{}/{} CAM intersected with WR.'.format(ctr_cam_wr_intersection,len(y_train_arr_nonencode)))
     # reset cam and WR intersection counter to 0 after epoch
     ctr_cam_wr_intersection = 0
 
@@ -272,13 +280,13 @@ for epoch in range(epochs):
     val_acc_metric[1].reset_states()
 
     print("Validation acc: %.4f" % (float(val_acc),))
-    print("Validation MAP: %.4f" % (float(val_map),))
+    # print("Validation MAP: %.4f" % (float(val_map),))
     history['validation_accuracy'].append((val_acc,))
-    history['validation_map'].append((val_map,))
+    # history['validation_map'].append((val_map,))
 
     if(val_acc>val_acc_threshold):
-        model.save("./models_14x14_onehot/xil_refined_models/distance_refined_weights.tf", save_format='tf') 
-        model.save_weights("./models_14x14_onehot/xil_refined_models/distance_refined_weights.h5")
+        # model.save("./models_14x14_onehot/xil_refined_models/distance_refined_weights.tf", save_format='tf') 
+        # model.save_weights("./models_14x14_onehot/xil_refined_models/distance_refined_weights.h5")
         val_acc_threshold = val_acc
         print('model updated')
     train_map = train_map_sum/len(train_dataset)

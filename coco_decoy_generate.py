@@ -3,6 +3,7 @@ import random
 import cv2
 import numpy as np
 import os
+import tqdm
 
 def generate_decoy(category):
     # loop over ms coco images, and draw square confounding regions on them
@@ -15,13 +16,16 @@ def generate_decoy(category):
 
     im_size = 224
     src_path = "./MSCOCO/images/" + category +"/"
+    
+    
+    
     target_path = "./MSCOCO/confounded/" + category +"/"
 
     mask_path = "./MSCOCO/confounded_mask/" + category +"/"
     mask = 255 * np.zeros(shape=[224, 224, 3], dtype=np.uint8)
 
     random.seed(seed_value)
-    for i, img_name in enumerate(os.listdir(src_path)):
+    for i, img_name in tqdm.tqdm(enumerate(os.listdir(src_path))):
         # add confounding regions only to training dataset of 1000 images from each category
         if(i==1000): break
 
@@ -52,8 +56,16 @@ def generate_decoy(category):
 
 
 def main():
+    # prepare confounded and confounded_mask dirs and subdirs
+    os.mkdir("./MSCOCO/confounded/")
+    os.mkdir("./MSCOCO/confounded_mask/")
+    
+    
     categories = ['zebra', 'train']
     for c in categories:
+        
+        os.mkdir(os.path.join("./MSCOCO/confounded/", c))
+        os.mkdir(os.path.join("./MSCOCO/confounded_mask/", c))
         generate_decoy(c)
     print('decoy images generated successsfully.')
 
