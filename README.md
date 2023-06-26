@@ -28,11 +28,6 @@ tuning took 9 minutes
 
 # Instructions
 
-To clone this repository and change current working directory to the cloned repo:
-```
-git clone https://github.com/Msgun/XBL-D.git
-cd XBL-D
-```
 
 ## Downloading MS COCO JSON
 
