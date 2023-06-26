@@ -28,6 +28,10 @@ tuning took 9 minutes
 
 # Instructions
 
+Download this repository and change the working directory to XBL-D, and follow the instructions below:
+```
+cd XBL-D
+```
 
 ## Downloading MS COCO JSON
 
