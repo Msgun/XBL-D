@@ -28,6 +28,12 @@ tuning took 9 minutes
 
 # Instructions
 
+To clone this repository and change current working directory to the cloned repo:
+```
+git clone https://github.com/Msgun/XBL-D.git
+cd XBL-D
+```
+
 ## Downloading MS COCO JSON
 
 Download the 'instances_train2014.json' from [this link](https://cocodataset.org/#download) and place it in the same directory as the scripts in this repository. It is found inside the '2014 Train/Val annotations.'
